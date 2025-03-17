@@ -8,7 +8,7 @@ app.use(cors());
 
 const SECRET_TOKEN = 'my-super-secret-token-12345'; // Тот же токен, что в GitHub Secrets
 
-app.use(express.static(path.join(__dirname, 'build'))); // Раздача статических файлов из папки build
+app.use('/', express.static(path.join(__dirname, 'build'))); // Раздача статических файлов из папки build
 
 app.post('/webhook', (req, res) => {
     const authHeader = req.headers['authorization'];
