@@ -43,16 +43,16 @@ app.post("/webhook", (req, res) => {
 
     console.log("Received event:", req.body);
 
-    // Запускаем скрипт пересборки
-    exec("/path/to/your/script.sh", (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Script execution failed: ${error.message}`);
-            console.error(`stderr: ${stderr}`);
-            return res.status(500).send("Failed to execute deployment script");
-        }
-        console.log(`Script output: ${stdout}`);
-        res.status(200).send("Webhook received and deployment started");
-    });
+// Выполняем скрипт деплоя
+exec('./deploy.sh', (error, stdout, stderr) => {
+  if (error) {
+    console.error(`Error: ${error.message}`);
+    return res.status(500).send('Deployment failed');
+  }
+  console.log(`Output: ${stdout}`);
+  console.error(`Errors: ${stderr}`);
+  res.status(200).send('Deployment started');
+});
 });
 
 app.use((err, req, res, next) => {
