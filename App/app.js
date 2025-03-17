@@ -44,7 +44,7 @@ app.post("/webhook", (req, res) => {
     console.log("Received event:", req.body);
 
 // Выполняем скрипт деплоя
-exec('../deploy.sh', (error, stdout, stderr) => {
+exec('/home/admin/cd/CI-CD/App/deploy.sh', (error, stdout, stderr) => {
   if (error) {
     console.error(`Error: ${error.message}`);
     return res.status(500).send('Deployment failed');
