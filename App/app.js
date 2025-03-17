@@ -1,40 +1,52 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const { exec } = require('child_process');
+const express = require("express");
+const bodyParser = require("body-parser");
+const crypto = require("crypto");
+
 const app = express();
-app.use(express.json())
-app.use(cors());
+const PORT = 2000;
+const SECRET = "my-super-secret-token-12345"; // Убедитесь, что совпадает с GitHub
 
-const SECRET_TOKEN = 'my-super-secret-token-12345'; // Тот же токен, что в GitHub Secrets
+app.use(express.static(path.join(__dirname, 'build'))); // Раздача статических файлов из папки build
 
-app.use('/', express.static(path.join(__dirname, 'build'))); // Раздача статических файлов из папки build
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'build', 'index.html'));
+});
 
-app.post('/webhook', (req, res) => {
-    const authHeader = req.headers['authorization'];
-    if (authHeader !== `Bearer ${SECRET_TOKEN}`) {
-      return res.status(403).send('Unauthorized');
+// Middleware для получения raw body и парсинга JSON
+app.use(bodyParser.json({
+    verify: (req, res, buf) => {
+        req.rawBody = buf; // Сохраняем необработанное тело
     }
-  
-    console.log('Webhook received:', req.body);
-  
-    // Выполняем скрипт деплоя
-    exec('./deploy.sh', (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Error: ${error.message}`);
-        return res.status(500).send('Deployment failed');
-      }
-      console.log(`Output: ${stdout}`);
-      console.error(`Errors: ${stderr}`);
-      res.status(200).send('Deployment started');
-    });
-  });
+}));
 
-app.listen(2000, (error) => {
-    const PORT = 2000
-    if(error) {
-      return console.log(error)
+// Обработчик Webhook
+app.post("/webhook", (req, res) => {
+    // Проверяем, что тело запроса получено
+    if (!req.rawBody) {
+        return res.status(400).send("No raw body received");
     }
 
-    return console.log(`http://localhost:${PORT}`)
-})
+    // Вычисляем подпись
+    const signature = `sha256=${crypto
+        .createHmac("sha256", SECRET)
+        .update(req.rawBody)
+        .digest("hex")}`;
+
+    const githubSignature = req.headers["x-hub-signature-256"];
+
+    console.log("Computed signature:", signature);
+    console.log("GitHub signature:", githubSignature);
+    console.log("Request body:", req.body);
+
+    // Проверяем подпись
+    if (!githubSignature || signature !== githubSignature) {
+        return res.status(401).send("Invalid signature");
+    }
+
+    console.log("Received event:", req.body);
+    res.status(200).send("Webhook received");
+});
+
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
