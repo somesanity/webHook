@@ -2,7 +2,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const crypto = require("crypto");
 const path = require("path");
-const { exec } = require("child_process"); // Добавляем модуль для выполнения скрипта
+const { exec } = require("child_process");
 
 const app = express();
 const PORT = 2000;
@@ -35,6 +35,7 @@ app.post("/webhook", (req, res) => {
 
     console.log("Computed signature:", signature);
     console.log("GitHub signature:", githubSignature);
+    console.log("Request headers:", req.headers);
     console.log("Request body:", req.body);
 
     if (!githubSignature || signature !== githubSignature) {
@@ -43,16 +44,19 @@ app.post("/webhook", (req, res) => {
 
     console.log("Received event:", req.body);
 
-// Выполняем скрипт деплоя
-exec('/home/admin/cd/CI-CD/App/deploy.sh', (error, stdout, stderr) => {
-  if (error) {
-    console.error(`Error: ${error.message}`);
-    return res.status(500).send('Deployment failed');
-  }
-  console.log(`Output: ${stdout}`);
-  console.error(`Errors: ${stderr}`);
-  res.status(200).send('Deployment started');
-});
+    // Отправляем ответ сразу, чтобы избежать тайм-аута
+    res.status(202).send("Deployment process started");
+
+    // Выполняем скрипт деплоя асинхронно
+    exec('/home/admin/cd/CI-CD/App/deploy.sh', (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing deploy.sh: ${error.message}`);
+            console.error(`Full stderr: ${stderr}`);
+            return; // Не отправляем ответ, так как он уже отправлен
+        }
+        console.log(`Deployment output: ${stdout}`);
+        if (stderr) console.error(`Deployment warnings: ${stderr}`);
+    });
 });
 
 app.use((err, req, res, next) => {
